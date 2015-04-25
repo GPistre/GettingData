@@ -1,51 +1,48 @@
-library(data.table)
-library(plyr)
+library(dplyr)
 
-activityCodes <- read.table("~/Documents/R/UCI HAR Dataset/activity_labels.txt")
+#Setting working directory, change if necessary
+setwd("~/GitHub/GettingData")
+
+
+activityCodes <- read.table("activity_labels.txt")[[2]]
 #Required features
-features <- read.table("~/Documents/R/UCI HAR Dataset/features.txt")
+features <- read.table("features.txt")
 reqMeasurementsCodes <- features[grepl("mean", features$V2) | grepl("Mean", features$V2) | grepl("std", features$V2),]
 
 #Loading training set
-trainX <- read.table("~/Documents/R/UCI HAR Dataset/train/X_train.txt")
-trainActivity <- read.table("~/Documents/R/UCI HAR Dataset/train/y_train.txt")
-trainSubjects <- read.table("~/Documents/R/UCI HAR Dataset/train/subject_train.txt")
+trainX <- read.table("./train/X_train.txt")
+trainActivity <- read.table("./train/y_train.txt")
+trainSubjects <- read.table("./train/subject_train.txt")
 
 #Loading test set
-testX <- read.table("~/Documents/R/UCI HAR Dataset/test/X_test.txt")
-testActivity <- read.table("~/Documents/R/UCI HAR Dataset/test/y_test.txt")
-testSubjects <- read.table("~/Documents/R/UCI HAR Dataset/test/subject_test.txt")
+testX <- read.table("./test/X_test.txt")
+testActivity <- read.table("./test/y_test.txt")
+testSubjects <- read.table("./test/subject_test.txt")
 
 #Extracting required measurements
 #For training set
 reqMeasurementsTrain <- trainX[, reqMeasurementsCodes$V1]
 trainDF <- cbind(trainSubjects, rep(1, nrow(trainSubjects)), trainActivity, reqMeasurementsTrain)
-names(trainDF) <- c("SubjectID", "Group", "Activity", as.character(reqMeasurementsCodes$V2))
+names(trainDF) <- c("subjectID", "group", "activity", as.character(reqMeasurementsCodes$V2))
 
 
 #For test set
 reqMeasurementsTest <- testX[, reqMeasurementsCodes$V1]
 testDF <- cbind(testSubjects, rep(2, nrow(testSubjects)), testActivity, reqMeasurementsTest)
-names(testDF) <- c("SubjectID", "Group", "Activity", as.character(reqMeasurementsCodes$V2))
+names(testDF) <- c("subjectID", "group", "activity", as.character(reqMeasurementsCodes$V2))
+
+#Merging sets
 df <- rbind(trainDF, testDF)
 
-final <- ddply(df, c("SubjectID", "Activity"), colMeans)
+#Calculating means by subject / activity
+final <- ddply(df, c("subjectID", "activity"), colMeans)
 
 #replace labels with activity & group names
-for (i in 1:nrow(final))
-{
-  actVector[i] <- as.character(activityCodes[actVector[i],2])
-  
-  if (groupVector[i] == 1)
-  {
-    groupVector[i] <- "Training"
-  }
-  else
-  {
-    groupVector[i] <- "Test"
-  }
-}
-final$Activity <- actVector
-final$Group <- groupVector
+final$activity <- factor(x = final$activity, labels = tolower(activityCodes))
+final$group <- factor(x = final$group, labels = c("training", "testing"))
+
+#remove special characters in variable names
+names(final) <- sapply(names(final), function(x){ gsub(pattern = "\\-|\\(|\\)|\\,", x = x, replacement = "") })
+
+#saving file
 write.table(final, file = "tidyAccel.txt", row.names = F)
-str(final)
